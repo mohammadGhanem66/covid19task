@@ -24,24 +24,11 @@ class Command(BaseCommand):
                     except CountryDailyCases.DoesNotExist:
                         country_history = None
 
-                    if not country_history:
-                        death_agg = 0
-                        confirmed_agg = 0
-                        recoverd_agg = 0
-                    else:
-                        death_agg = country_history.death_agg
-                        confirmed_agg = country_history.confirmed_agg
-                        recoverd_agg = country_history.recoverd_agg
-                    
                     for record in self.filter_response(response, country_history):
-                        death_agg += record['Deaths']
-                        confirmed_agg += record['Confirmed']
-                        recoverd_agg += record['Recovered']
                         date = datetime.fromisoformat(record['Date'][:-1] + '+00:00')
                         CountryDailyCases.objects.create(country_id=country, death=record['Deaths'],
                                                          confirmed=record['Confirmed'], recoverd=record['Recovered'],
-                                                         death_agg=death_agg, confirmed_agg=confirmed_agg,
-                                                         recoverd_agg=recoverd_agg, date=date)
+                                                         date=date)
 
 
         except Exception as e:

@@ -13,9 +13,7 @@ class TestCases(APITestCase):
         self.country_jordan = Country.objects.create(name="jordan")
         date = datetime.fromisoformat("2020-01-22T00:00:00Z"[:-1] + '+00:00')
         CountryDailyCases.objects.create(country_id=self.country_palestine, death=10,
-                                         confirmed=20, recoverd=10,
-                                         death_agg=10, confirmed_agg=20,
-                                         recoverd_agg=10, date=date)
+                                         confirmed=20, recoverd=10, date=date)
         refresh = RefreshToken.for_user(self.user)
         self.token = str(refresh.access_token)
         self.authentication()
