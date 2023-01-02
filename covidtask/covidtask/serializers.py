@@ -23,3 +23,9 @@ class SubscribtionSerializer(serializers.ModelSerializer):
 class CountryViewSerializer(serializers.Serializer):
     status = serializers.CharField()
     limit = serializers.IntegerField(default=3)
+
+
+class AggregatedCountriesSerializer(serializers.Serializer):
+    country_id = serializers.IntegerField()
+    name = serializers.CharField()
+    total = serializers.IntegerField()

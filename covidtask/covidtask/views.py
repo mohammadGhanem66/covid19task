@@ -1,14 +1,14 @@
 from rest_framework.response import Response
 from .models import Country, CountryDailyCases
-from .serializers import CountrySerializer, SubscribtionSerializer, CountryViewSerializer
+from .serializers import CountrySerializer, SubscribtionSerializer, CountryViewSerializer, AggregatedCountriesSerializer
 from rest_framework.generics import ListAPIView, CreateAPIView
 from rest_framework import views, status
 from django.db.models import Count
+from django.db.models import Sum
+from django.db.models import F
 
 
-class CountryPercentageView(ListAPIView):
-    serializer_class = CountrySerializer
-    queryset = Country.objects.all()
+class CountryPercentageView(views.APIView):
 
     def get(self, request, country, *args, **kwargs):
 
@@ -22,16 +22,19 @@ class CountryPercentageView(ListAPIView):
             country_history = None
 
         if country_history:
-            death_count = country_history.death_agg
-            confirmed_count = country_history.confirmed_agg
+            death_count = country.country_daily_cases.aggregate(Sum('death'))
+            confirmed_count = country.country_daily_cases.aggregate(Sum('confirmed'))
+            confirmed_count = confirmed_count['confirmed__sum']
+            death_count = death_count['death__sum']
             if not confirmed_count:
                 return Response({'message': 'Confirmed cant be zero', 'error': False, 'code': 500},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             percentage = death_count / confirmed_count
-            responseData = {"death": death_count, "confirmed": confirmed_count, "percentage": percentage}
+            response_data = {"death": death_count, "confirmed": confirmed_count, "percentage": percentage}
         else:
-            responseData = {"death": 0, "confirmed": 0, "percentage": 0}
-        return Response(responseData)
+            response_data = {"death": 0, "confirmed": 0, "percentage": 0}
+        return Response(response_data)
 
 
 class TopCountryView(ListAPIView):
@@ -42,27 +45,19 @@ class TopCountryView(ListAPIView):
         country_view_serializer = CountryViewSerializer(data=request.query_params)
         country_view_serializer.is_valid(raise_exception=True)
         data = country_view_serializer.validated_data
-        status_agg = data['status'] + "_agg"
+        status_values = ['death', 'confirmed', 'recoverd']
+        if data['status'] not in status_values:
+            return Response({'message': 'Wrong status', 'error': False, 'code': 400},
+                            status=status.HTTP_400_BAD_REQUEST)
         subscribed_countries = Country.objects.annotate(subscriptions_count=Count('subscription')) \
-            .filter(subscriptions_count__gt=0).all()
-        countries_history = [self.get_latest_country_daily_cases(country) for country in subscribed_countries]
-        countries_history.sort(key=lambda daily_case: self.sort_daily_cases(daily_case, status_agg), reverse=True)
-        countrires = map(lambda country_daily_case: country_daily_case.country_id,
-                         countries_history[:data['limit']])
+            .filter(subscriptions_count__gt=0).values_list('id', flat=True)
+        countrires = CountryDailyCases.objects.values('country_id', 'country_id__name').annotate(
+            total=Sum(data['status'])).filter(
+            country_id__in=subscribed_countries).order_by('-total')[:data['limit']]
+        countrires = countrires.annotate(name=F('country_id__name'))
 
-        countrySerializer = CountrySerializer(countrires, many=True)
-        return Response(countrySerializer.data)
-
-    def get_latest_country_daily_cases(self, country):
-        try:
-            return country.country_daily_cases.latest('created_at')
-        except CountryDailyCases.DoesNotExist:
-            return None
-
-    def sort_daily_cases(self, daily_case, status_agg):
-        if daily_case:
-            return getattr(daily_case, status_agg)
-        return 0
+        aggregatedCountrySerializer = AggregatedCountriesSerializer(countrires, many=True)
+        return Response(aggregatedCountrySerializer.data)
 
 
 class SubscribtionViewSet(CreateAPIView):

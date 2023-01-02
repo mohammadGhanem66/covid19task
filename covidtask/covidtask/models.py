@@ -17,9 +17,6 @@ class CountryDailyCases(models.Model):
     confirmed = models.IntegerField(blank=True, null=True)
     death = models.IntegerField(blank=True, null=True)
     recoverd = models.IntegerField(blank=True, null=True)
-    confirmed_agg = models.IntegerField(blank=True, null=True)
-    death_agg = models.IntegerField(blank=True, null=True)
-    recoverd_agg = models.IntegerField(blank=True, null=True)
     date = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
